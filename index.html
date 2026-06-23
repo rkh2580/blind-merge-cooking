@@ -428,6 +428,12 @@ html, body {
 #ob-logo { font-size: 56px; text-align: center; line-height: 1; }
 #ob-title { font-size: 28px; font-weight: 900; color: var(--accent); text-align: center; letter-spacing: -1px; margin-top: 4px; }
 #ob-tagline { font-size: 14px; font-weight: 700; color: var(--text-sub); text-align: center; margin-top: 6px; line-height: 1.5; }
+#ob-scrollhint {
+  margin-top: 12px; text-align: center; font-size: 12.5px; font-weight: 800; color: var(--accent);
+  background: #FFF3E6; border: 1.5px solid #F0C090; border-radius: 12px; padding: 8px 12px;
+}
+#ob-scrollhint .arr { display: inline-block; animation: hintbob 1.1s ease-in-out infinite; }
+@keyframes hintbob { 0%,100%{transform:translateY(0);} 50%{transform:translateY(3px);} }
 .ob-card {
   background: #fff; border: 2px solid var(--panel-border); border-radius: 16px;
   padding: 14px 16px; margin-top: 14px; box-shadow: 0 3px 10px rgba(0,0,0,0.05);
@@ -477,6 +483,7 @@ html, body {
       <div id="ob-logo">🍳</div>
       <div id="ob-title">블라인드 머지 쿠킹</div>
       <div id="ob-tagline">기억하고 합쳐서<br><b>주문 요리를 완성</b>하는 캐주얼 머지 퍼즐</div>
+      <div id="ob-scrollhint"><span class="arr">👇</span> 아래로 내리면 <b>▶ 플레이하러 가기</b> 버튼이 있어요</div>
 
       <div class="ob-card">
         <h3>🎮 게임 소개</h3>
@@ -486,7 +493,7 @@ html, body {
         </div>
         <div class="ob-body">
           <p><span class="lead">한 줄 컨셉</span><br>요리 재료를 기억해서 같은 것끼리 합치고, 주문 요리를 완성하는 퍼즐.</p>
-          <p style="margin-top:9px"><span class="lead">기획 의도</span><br>주요 고객층인 30~50대 여성에게 강세인 머지2 장르에서, 스토리와 꾸미기 요소를 걷어내고 퍼즐 요소를 강화했습니다.</p>
+          <p style="margin-top:9px"><span class="lead">기획 의도</span><br>주요 고객층인 30~50대 여성에게 강세인 머지2 장르에서, 스토리와 꾸미기 요소는 덜고 퍼즐의 재미와 요리 테마의 몰입감을 강화했습니다.</p>
         </div>
       </div>
 
