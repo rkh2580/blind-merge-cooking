@@ -287,9 +287,10 @@ html, body {
 .station:active { transform: scale(0.93); }
 .station.busy { border-color: #E0573B; animation: basket-arm 0.8s ease-in-out infinite alternate; }
 .station .s-tool { font-size: 22px; line-height: 1; }
-.station .s-io { font-size: 17px; line-height: 1; }
+.station .s-io { font-size: 17px; line-height: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.station .s-io .s-lv { font-size: 11px; font-weight: 900; color: #E0573B; }
 .station .s-time { font-size: 12px; font-weight: 900; color: #E0573B; }
-.station .s-cap { font-size: 10px; color: var(--text-sub); font-weight: 700; }
+.station .s-cap { font-size: 11px; color: var(--text-sub); font-weight: 800; }
 .ing-card { position: relative; }
 .ing-cook { position: absolute; top: -7px; right: -6px; font-size: 13px; background:#fff; border:1.5px solid #E0573B; border-radius:8px; padding:0 2px; }
 .diff-최상 { background: #8e3bd6; }
@@ -857,6 +858,7 @@ const G = {
   reveal:false,      // 전체 공개(프리뷰/다시보기) 모드
   mergeCount:0,
   ended:false,       // 승/패 1회성 · 클리어/게임오버 중복·역전 방지
+  gen:0,             // 스테이지 세대 · 이전 스테이지의 타이머 체인을 고아 처리(누수·오작동 방지)
   items:{peek:0,hint:0,skip:0},
   companion:false,   // 미구현(과금형 데모)
 };
@@ -938,6 +940,7 @@ function startStage(ci,si){
   G.ch=ci; G.st=si; G.stage=stg;
   G.movesLeft=stg.movesLimit;
   G.first=null; G.firstWasUp=false; G.locked=true; G.reveal=true; G.ended=false;
+  G.gen++;           // 새 세대 → 이전 스테이지 타이머 체인 무효화
   G.orderDone=stg.order.map(()=>false);
   G.mergeCount=0;
   G.items={ peek:stg.free.peek, hint:stg.free.hint, skip:stg.free.skip };
@@ -977,10 +980,12 @@ function subtractMultiset(full, sub){
 function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } }
 
 function runPreview(sec){
+  const myGen=G.gen;
   G.reveal=true; G.locked=true; renderBoard();
   let remain=Math.ceil(sec);
   $previewOv.classList.add('show');
   const tick=()=>{
+    if(G.gen!==myGen) return;                 // 고아 체인(스테이지 바뀜) → 중단
     $previewNum.textContent=remain;
     $previewNum.style.animation='none'; void $previewNum.offsetWidth; $previewNum.style.animation='';
     if(remain<=0){
@@ -1074,9 +1079,10 @@ function renderRightCol(){
     const timeLabel = st.busy ? `⏱${st.remain}` : `⏱${st.time}`;
     el.innerHTML=
       `<span class="s-tool">${st.toolEmoji}</span>`+
-      `<span class="s-io">${st.busy?outM.emoji:baseM.emoji}</span>`+
+      `<span class="s-io">${st.busy?outM.emoji:baseM.emoji}`+
+        `${st.busy?'':`<span class="s-lv">Lv${st.lv}</span>`}</span>`+
       `<span class="s-time">${timeLabel}</span>`+
-      `<span class="s-cap">${baseM.emoji}→${outM.emoji}</span>`;
+      `<span class="s-cap">→ ${outM.emoji}</span>`;
     el.addEventListener('click', ()=> onStationClick(idx));
     $basketCol.appendChild(el);
   });
@@ -1284,8 +1290,10 @@ $('it-peek').addEventListener('click', ()=>{
   if(G.items.peek<=0||G.locked) return;
   G.items.peek--; updateItemBtns(); clearSelection();
   G.reveal=true; G.locked=true; renderBoard();
+  const myGen=G.gen;
   $previewOv.classList.add('show'); let r=Math.ceil(CONFIG.PEEK_MS/1000);
-  const tk=()=>{ $previewNum.textContent=r; $previewNum.style.animation='none'; void $previewNum.offsetWidth; $previewNum.style.animation='';
+  const tk=()=>{ if(G.gen!==myGen) return;                 // 고아 체인 중단
+    $previewNum.textContent=r; $previewNum.style.animation='none'; void $previewNum.offsetWidth; $previewNum.style.animation='';
     if(r<=0){ $previewOv.classList.remove('show'); G.reveal=false; G.locked=false; renderBoard(); afterAction(); return; } r--; setTimeout(tk,1000); };
   tk();
 });
@@ -1317,7 +1325,8 @@ function skipRun(){
   // 주문 체크 연출
   G.stage.order.forEach((o,i)=>{ if(!G.orderDone[i]){ G.orderDone[i]=true; const card=$(`ic${i}`); if(card) card.classList.add('done'); } });
   updateProg();
-  setTimeout(showClear, 450);
+  const myGen=G.gen;
+  setTimeout(()=>{ if(G.gen===myGen) showClear(); }, 450);   // 고아 클리어 방지
 }
 // 동료 컴패니언: ON이면 내 행동 1회마다 자동 머지 1회(무브 0)
 function updateCompanionBtn(){
