@@ -504,16 +504,15 @@ html, body {
         <h3>✨ 핵심 기믹 2가지</h3>
         <div class="ob-gimmick">
           <span class="ico">🧺</span>
-          <div><div class="gname">바구니</div><div class="gdesc">우측에 나타나는 아이콘입니다. 유효 머지를 정해진 횟수만큼 하면 남은 빈 칸에 재료를 쏟아냅니다. 탭하면 내용물을 미리 볼 수 있습니다.</div></div>
+          <div><div class="gname">바구니</div><div class="gdesc">우측에 등장하는 깜짝 재료함! 머지를 쌓으면 빈 칸에 재료를 와르르 쏟아내요. 탭하면 안에 뭐가 들었는지 살짝 볼 수 있어요.</div></div>
         </div>
         <div class="ob-gimmick">
           <span class="ico">🍳</span>
-          <div><div class="gname">조리</div><div class="gdesc">바구니처럼 우측에 나타나는 도구입니다. 재료를 올리면 정해진 무브가 지난 뒤 진화 재료로 바뀝니다. 시간이 곧 무브라서, 조리 재료를 먼저 올려두는 것이 중요합니다.</div></div>
+          <div><div class="gname">조리</div><div class="gdesc">우측 조리도구에 재료를 올려두면 몇 턴 뒤 더 좋은 재료로 변신! 시간이 곧 무브라서, 일찍 올려둘수록 이득이에요.</div></div>
         </div>
       </div>
 
       <button id="ob-cta">▶ 플레이하러 가기</button>
-      <div id="ob-foot">게임엔 HTML5 포털 제안용 프로토타입</div>
     </div>
   </div>
 
@@ -1068,6 +1067,7 @@ function renderRightCol(){
   });
   // ── 조리도구 ──
   G.stations.forEach((st,idx)=>{
+    if(st.done) return;                       // 완료된 조리도구는 사라짐
     const baseM=ING[st.base], outM=ING[st.evolved];
     const el=document.createElement('div'); el.className='station'+(st.busy?' busy':'');
     el.dataset.sidx=idx;
@@ -1099,11 +1099,13 @@ function onBoardClick(e){
 function handleUpTap(idx){
   if(G.first===null){ G.first=idx; G.firstWasUp=true; getTileEl(idx)?.classList.add('selected'); return; }
   if(G.first===idx){ getTileEl(idx)?.classList.remove('selected'); G.first=null; G.firstWasUp=false; return; }
-  const a=G.first,b=idx; getTileEl(a)?.classList.remove('selected'); G.first=null; G.firstWasUp=false;
+  const a=G.first,b=idx,wasUp=G.firstWasUp; getTileEl(a)?.classList.remove('selected'); G.first=null; G.firstWasUp=false;
   const ca=G.board[a],cb=G.board[b];
   if(!ca||ca.face!=='u'||!cb){ return; }                 // 스테일 선택 방어(무브 소모 없이 취소)
   spendMove();
-  if(ca.type===cb.type && ca.lv===cb.lv) doMerge(a,b); else afterAction();
+  if(ca.type===cb.type && ca.lv===cb.lv) doMerge(a,b);
+  else if(!wasUp) doFlipBackOne(a);    // 실패 + 첫 선택이 방금 뒤집어 연 카드 → 도로 덮기
+  else afterAction();
 }
 function handleDownTap(idx){
   flipReveal(idx);
@@ -1161,7 +1163,7 @@ function flushPendingStations(){
   G.stations.forEach(st=>{
     if(!st.pending) return;
     const e=G.board.findIndex(c=>c.face==='e'); if(e<0) return;
-    st.pending=false;
+    st.pending=false; st.done=true;
     G.board[e]={type:st.evolved,lv:st.lv,face:'u'}; refreshTileEl(e); getTileEl(e)?.classList.add('drop');
     toast(`✅ ${ING[st.evolved].name} 완성!`);
     checkOrderMatch(e, st.evolved, st.lv, {auto:true});
@@ -1264,6 +1266,7 @@ function stationOutput(st){
   G.board[slot]={type:st.evolved,lv:st.lv,face:'u'};
   refreshTileEl(slot); getTileEl(slot)?.classList.add('drop');
   toast(`✅ ${ING[st.evolved].name} 완성!`);
+  st.done=true; renderRightCol();             // 완료된 조리도구 제거
   checkOrderMatch(slot, st.evolved, st.lv, {auto:true});
 }
 
