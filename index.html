@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>블라인드 머지 쿠킹</title>
+<style>
+:root {
+  --bg: #FFF8F0;
+  --accent: #E8720C;
+  --accent2: #4CAF50;
+  --gold: #F5A623;
+  --text: #3A2A1A;
+  --text-sub: #7A5A4A;
+  --text-dim: #AAAAAA;
+  --tile-down-bg: #E8D5C0;
+  --tile-down-border: #C4A080;
+  --hint-color: #FF6B35;
+  --overlay-bg: rgba(50,25,5,0.85);
+  --panel: #FFF3E6;
+  --panel-border: #F0C090;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%;
+  background: #B07840;
+  font-family: 'Apple SD Gothic Neo','Malgun Gothic','NanumGothic',sans-serif;
+  overflow: hidden;
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  color: var(--text);
+}
+#app {
+  position: relative;
+  width: 390px;
+  max-width: 100vw;
+  height: 100%;
+  max-height: 844px;
+  margin: 0 auto;
+  background: var(--bg);
+  overflow: hidden;
+  box-shadow: 0 0 60px rgba(0,0,0,0.5);
+}
+@media (max-height: 844px) { #app { max-height: 100dvh; } }
+
+/* ---- SCREENS ---- */
+.screen { position: absolute; inset: 0; display: none; flex-direction: column; }
+.screen.active { display: flex; }
+
+/* ============================================================
+   LOBBY
+   ============================================================ */
+#lobby { background: linear-gradient(170deg,#FFE9CF 0%, #FFF8F0 45%); }
+#lobby-top {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px 8px;
+}
+.currency-group { display: flex; gap: 8px; }
+.chip {
+  background: #fff; border: 2px solid var(--panel-border); border-radius: 30px;
+  padding: 5px 11px; font-size: 14px; font-weight: 800; color: var(--text);
+  display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.06);
+}
+.chip small { font-size: 10px; color: var(--text-sub); font-weight: 700; }
+#hearts-chip { color: #E0395B; }
+#lobby-hero {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; padding: 8px 20px; text-align: center;
+}
+#game-logo { font-size: 70px; line-height: 1; }
+#game-title { font-size: 30px; font-weight: 900; color: var(--accent); letter-spacing: -1px; }
+#game-sub { font-size: 14px; color: var(--text-sub); font-weight: 700; margin-bottom: 6px; }
+#btn-play {
+  margin-top: 12px;
+  background: var(--accent); color: #fff; border: none; border-radius: 50px;
+  padding: 17px 60px; font-size: 22px; font-weight: 900; font-family: inherit;
+  cursor: pointer; box-shadow: 0 6px 20px rgba(232,114,12,0.42);
+  -webkit-tap-highlight-color: transparent; transition: transform 0.1s;
+}
+#btn-play:active { transform: scale(0.95); }
+#lobby-sub-actions { display: flex; gap: 10px; margin-top: 4px; }
+.mini-btn {
+  background: #fff; border: 2px solid var(--panel-border); border-radius: 16px;
+  padding: 9px 16px; font-size: 13px; font-weight: 800; color: var(--text);
+  font-family: inherit; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  -webkit-tap-highlight-color: transparent;
+}
+.mini-btn .ico { font-size: 21px; }
+/* BM bar */
+#bm-bar {
+  display: flex; justify-content: space-around; align-items: stretch;
+  background: var(--panel); border-top: 2px solid var(--panel-border);
+  padding: 9px 8px 16px;
+}
+.bm-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  font-size: 11px; font-weight: 800; color: var(--text-sub);
+  cursor: pointer; -webkit-tap-highlight-color: transparent; position: relative;
+}
+.bm-item .ico { font-size: 24px; }
+.bm-item .badge {
+  position: absolute; top: -3px; right: 14px;
+  background: var(--accent); color: #fff; font-size: 10px; font-weight: 900;
+  min-width: 16px; height: 16px; border-radius: 9px; display: flex; align-items: center; justify-content: center;
+  padding: 0 4px;
+}
+.bm-item .badge.green { background: var(--accent2); }
+
+/* ============================================================
+   STAGE SELECT
+   ============================================================ */
+#select { background: var(--bg); }
+.scr-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 14px 10px; background: var(--panel); border-bottom: 2px solid var(--panel-border);
+  flex-shrink: 0;
+}
+.back-btn {
+  background: #fff; border: 2px solid var(--panel-border); border-radius: 12px;
+  width: 38px; height: 38px; font-size: 18px; cursor: pointer; font-family: inherit;
+  -webkit-tap-highlight-color: transparent; flex-shrink: 0;
+}
+.scr-title { font-size: 19px; font-weight: 900; color: var(--text); }
+#select-scroll { flex: 1; overflow-y: auto; padding: 12px 14px 28px; }
+.chapter {
+  background: #fff; border: 2px solid var(--panel-border); border-radius: 18px;
+  margin-bottom: 16px; overflow: hidden;
+}
+.chapter-head {
+  display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+  background: linear-gradient(100deg, #FFF0DC, #fff);
+}
+.chapter-flag { font-size: 30px; }
+.chapter-meta { flex: 1; }
+.chapter-name { font-size: 17px; font-weight: 900; }
+.chapter-theme { font-size: 11px; color: var(--text-sub); font-weight: 700; }
+.chapter-gimmick {
+  font-size: 10px; font-weight: 800; color: var(--accent);
+  background: #FFE3C5; padding: 3px 8px; border-radius: 10px;
+}
+.stage-list { display: flex; flex-direction: column; gap: 8px; padding: 4px 12px 14px; }
+.stage-card {
+  display: flex; align-items: center; gap: 11px; padding: 10px 12px;
+  border: 2px solid #EFE0CC; border-radius: 14px; cursor: pointer; background: #FFFDFB;
+  -webkit-tap-highlight-color: transparent; transition: transform 0.1s, border-color 0.15s;
+}
+.stage-card:active { transform: scale(0.98); }
+.stage-dish-emoji { font-size: 30px; }
+.stage-info { flex: 1; }
+.stage-dish-name { font-size: 15px; font-weight: 800; }
+.stage-detail { font-size: 11px; color: var(--text-sub); font-weight: 700; margin-top: 1px; }
+.diff-tag { font-size: 11px; font-weight: 900; padding: 3px 9px; border-radius: 9px; color: #fff; }
+.diff-하 { background: #57b894; }
+.diff-중 { background: #f5a623; }
+.diff-상 { background: #e0573b; }
+.stage-stars { font-size: 13px; letter-spacing: -1px; color: var(--gold); margin-top: 3px; }
+
+/* ============================================================
+   GAME
+   ============================================================ */
+#game { background: var(--bg); }
+#topbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 14px 8px; background: var(--panel); border-bottom: 2px solid var(--panel-border);
+  flex-shrink: 0;
+}
+#tb-left { display: flex; align-items: center; gap: 8px; }
+#moves-wrap { display: flex; flex-direction: column; }
+#moves-label { font-size: 10px; font-weight: 700; color: var(--text-sub); letter-spacing: 0.5px; }
+#moves-num { font-size: 34px; font-weight: 900; color: var(--accent); line-height: 1; transition: color 0.3s; }
+#moves-num.danger { color: #D32F2F; animation: bounce 0.4s; }
+#right-info { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+#stage-tag { font-size: 12px; font-weight: 800; color: var(--text-sub); }
+#btn-recipe {
+  background: #fff; border: 2px solid var(--panel-border); border-radius: 12px;
+  padding: 5px 11px; font-size: 12px; font-weight: 800; cursor: pointer; font-family: inherit;
+  -webkit-tap-highlight-color: transparent; color: var(--text);
+}
+
+#order-panel { background: var(--panel); border-bottom: 2px solid var(--panel-border); padding: 8px 14px 11px; flex-shrink: 0; }
+#dish-title { font-size: 19px; font-weight: 900; text-align: center; margin-bottom: 8px; }
+#ing-row { display: flex; gap: 7px; justify-content: center; flex-wrap: wrap; }
+.ing-card {
+  background: #fff; border: 2px solid #E0C090; border-radius: 11px;
+  padding: 6px 8px; min-width: 56px;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  transition: border-color 0.3s, background 0.3s, opacity 0.3s;
+}
+.ing-card.done { border-color: var(--accent2); background: #F0FFF4; opacity: 0.6; }
+.ing-emoji { font-size: 19px; line-height: 1.25; }
+.ing-name { font-size: 11px; font-weight: 800; }
+.ing-lv { font-size: 10px; color: var(--text-sub); font-weight: 700; }
+.ing-check { font-size: 15px; color: var(--accent2); display: none; }
+.ing-card.done .ing-check { display: block; }
+.ing-card.done .ing-name, .ing-card.done .ing-lv { color: var(--text-dim); }
+
+#prog-wrap { height: 5px; background: #EDD9C0; flex-shrink: 0; }
+#prog-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--gold)); width: 0; transition: width 0.4s; }
+
+/* board + basket column */
+#play-area { flex: 1; display: flex; padding: 8px 6px 4px; position: relative; overflow: hidden; }
+#board-area { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
+#board { display: grid; gap: 8px; }
+#basket-col {
+  width: 60px; flex-shrink: 0; display: flex; flex-direction: column;
+  align-items: center; gap: 10px; padding-top: 8px;
+}
+.basket {
+  position: relative; width: 52px; height: 52px; border-radius: 14px;
+  background: #fff; border: 3px solid var(--accent); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; font-size: 26px;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.14); -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s;
+}
+.basket:active { transform: scale(0.92); }
+.basket.armed { animation: basket-arm 0.7s ease-in-out infinite alternate; }
+@keyframes basket-arm {
+  from { box-shadow: 0 0 0 0 rgba(232,114,12,0.5); }
+  to   { box-shadow: 0 0 0 7px rgba(232,114,12,0); }
+}
+.basket .b-badge {
+  position: absolute; bottom: -7px; right: -7px;
+  min-width: 22px; height: 22px; border-radius: 11px;
+  background: var(--accent); color: #fff; font-size: 12px; font-weight: 900;
+  display: flex; align-items: center; justify-content: center; border: 2px solid #fff;
+}
+.basket .b-order {
+  position: absolute; top: -7px; left: -7px;
+  width: 18px; height: 18px; border-radius: 9px; background: var(--text-sub); color: #fff;
+  font-size: 10px; font-weight: 900; display: flex; align-items: center; justify-content: center;
+}
+
+/* tiles */
+.tile { border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; transition: transform 0.12s; position: relative; }
+.tile:active:not(.empty) { transform: scale(0.9); }
+.tile.down { background: var(--tile-down-bg); border: 3px solid var(--tile-down-border); box-shadow: 0 3px 8px rgba(0,0,0,0.14); }
+.tile.down .t-q { font-size: 24px; font-weight: 900; color: #9A7060; }
+.tile.up { border: 3px solid #D4935A; box-shadow: 0 3px 10px rgba(0,0,0,0.16); }
+.tile.up .t-emoji { font-size: 19px; line-height: 1.1; }
+.tile.up .t-name { font-size: 11px; font-weight: 800; text-align: center; }
+.tile.up .t-lv { font-size: 10px; font-weight: 700; color: var(--text-sub); }
+.tile.empty { background: rgba(200,175,150,0.2); border: 2px dashed #C4A080; cursor: default; pointer-events: none; }
+.tile.selected { outline: 3px solid var(--hint-color); outline-offset: 1px; }
+.tile.hint-glow { animation: hint-pulse 0.6s ease-in-out infinite alternate; }
+@keyframes hint-pulse { from { box-shadow: 0 0 0 0 rgba(255,107,53,0.5);} to { box-shadow: 0 0 0 9px rgba(255,107,53,0); border-color:#FF3D00;} }
+@keyframes merge-pop { 0%{transform:scale(1);} 45%{transform:scale(1.28);} 72%{transform:scale(0.9);} 100%{transform:scale(1);} }
+.tile.merge-pop { animation: merge-pop 0.38s ease; }
+@keyframes fly-up { 0%{transform:scale(1) translateY(0);opacity:1;} 60%{transform:scale(0.6) translateY(-70px);opacity:0.7;} 100%{transform:scale(0.1) translateY(-200px);opacity:0;} }
+.tile.fly { animation: fly-up 0.45s ease-in forwards; pointer-events: none; }
+@keyframes flip-in { from{transform:scaleX(0);} to{transform:scaleX(1);} }
+.tile.flip { animation: flip-in 0.16s ease; }
+@keyframes drop-in { from{transform:translateY(-40px) scale(0.5);opacity:0;} to{transform:none;opacity:1;} }
+.tile.drop { animation: drop-in 0.3s ease; }
+@keyframes bounce { 0%,100%{transform:scale(1);} 50%{transform:scale(1.2);} }
+
+/* bottom item bar */
+#itembar {
+  display: flex; gap: 8px; padding: 9px 12px 16px; background: var(--panel);
+  border-top: 2px solid var(--panel-border); flex-shrink: 0;
+}
+.item-btn {
+  flex: 1; position: relative; background: #fff; border: 2px solid var(--panel-border);
+  border-radius: 14px; padding: 8px 4px; font-family: inherit; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  -webkit-tap-highlight-color: transparent; transition: transform 0.1s, opacity 0.15s;
+}
+.item-btn:active { transform: scale(0.95); }
+.item-btn:disabled { opacity: 0.4; cursor: default; }
+.item-btn .ico { font-size: 22px; }
+.item-btn .lbl { font-size: 11px; font-weight: 800; color: var(--text); }
+.item-btn .cnt {
+  position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; border-radius: 10px;
+  background: var(--accent2); color: #fff; font-size: 11px; font-weight: 900;
+  display: flex; align-items: center; justify-content: center; border: 2px solid #fff; padding: 0 4px;
+}
+.item-btn .cnt.zero { background: #BBB; }
+
+/* cooking station */
+.station {
+  position: relative; width: 56px; border-radius: 14px;
+  background: #fff; border: 3px solid #B07840; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 5px 2px 4px; box-shadow: 0 3px 8px rgba(0,0,0,0.14);
+  -webkit-tap-highlight-color: transparent; transition: transform 0.12s;
+}
+.station:active { transform: scale(0.93); }
+.station.busy { border-color: #E0573B; animation: basket-arm 0.8s ease-in-out infinite alternate; }
+.station .s-tool { font-size: 22px; line-height: 1; }
+.station .s-io { font-size: 17px; line-height: 1; }
+.station .s-time { font-size: 12px; font-weight: 900; color: #E0573B; }
+.station .s-cap { font-size: 10px; color: var(--text-sub); font-weight: 700; }
+.ing-card { position: relative; }
+.ing-cook { position: absolute; top: -7px; right: -6px; font-size: 13px; background:#fff; border:1.5px solid #E0573B; border-radius:8px; padding:0 2px; }
+.diff-최상 { background: #8e3bd6; }
+
+/* companion toggle */
+#companion {
+  position: absolute; left: 6px; bottom: 6px; z-index: 12;
+  width: 56px; border: 3px solid #C4A080; border-radius: 16px; background: #fff;
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+  padding: 5px 2px 3px; cursor: pointer; font-family: inherit;
+  -webkit-tap-highlight-color: transparent; box-shadow: 0 3px 8px rgba(0,0,0,0.16); opacity: 0.78;
+}
+#companion .cmp-face { font-size: 24px; filter: grayscale(1); }
+#companion .cmp-state { font-size: 11px; font-weight: 900; color: var(--text-dim); }
+#companion.on { border-color: var(--accent2); opacity: 1; }
+#companion.on .cmp-face { filter: none; }
+#companion.on .cmp-state { color: var(--accent2); }
+
+/* preview countdown */
+#preview-ov {
+  position: absolute; inset: 0; display: none; flex-direction: column;
+  align-items: center; justify-content: center; z-index: 60; pointer-events: none;
+}
+#preview-ov.show { display: flex; }
+#preview-num {
+  font-size: 96px; font-weight: 900; color: #fff;
+  text-shadow: 0 4px 18px rgba(0,0,0,0.45); animation: cd-pop 1s ease;
+}
+@keyframes cd-pop { 0%{transform:scale(1.6);opacity:0;} 25%{transform:scale(1);opacity:1;} 100%{transform:scale(1);opacity:1;} }
+#preview-label {
+  margin-top: 4px; background: rgba(0,0,0,0.45); color: #fff; font-size: 14px; font-weight: 800;
+  padding: 7px 18px; border-radius: 20px;
+}
+
+/* hint bubble */
+#hint-bubble {
+  position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
+  background: var(--accent); color: #fff; font-size: 13px; font-weight: 700;
+  padding: 6px 14px; border-radius: 20px; white-space: nowrap;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.25); opacity: 0; transition: opacity 0.3s;
+  pointer-events: none; z-index: 10;
+}
+#hint-bubble.show { opacity: 1; }
+
+/* ============================================================
+   MODALS (recipe + basket peek)
+   ============================================================ */
+.modal { position: absolute; inset: 0; background: rgba(40,20,5,0.6); z-index: 90; display: none; backdrop-filter: blur(3px); }
+.modal.show { display: flex; flex-direction: column; }
+.modal-sheet {
+  margin-top: auto; background: var(--bg); border-radius: 22px 22px 0 0;
+  max-height: 86%; display: flex; flex-direction: column; animation: sheet-up 0.25s ease;
+}
+@keyframes sheet-up { from{transform:translateY(100%);} to{transform:none;} }
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 18px 10px; flex-shrink: 0;
+}
+.modal-head h2 { font-size: 19px; font-weight: 900; }
+.modal-close {
+  background: #fff; border: 2px solid var(--panel-border); border-radius: 12px;
+  width: 36px; height: 36px; font-size: 17px; cursor: pointer; font-family: inherit;
+}
+.modal-body { overflow-y: auto; padding: 4px 18px 28px; }
+
+/* recipe book */
+.rb-tabs { display: flex; gap: 6px; padding: 0 18px 10px; flex-shrink: 0; }
+.rb-tab {
+  flex: 1; padding: 8px; border: 2px solid var(--panel-border); border-radius: 12px;
+  background: #fff; font-size: 13px; font-weight: 800; cursor: pointer; font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.rb-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.rb-section-title { font-size: 13px; font-weight: 900; color: var(--text-sub); margin: 14px 0 7px; }
+.rb-dish {
+  background: #fff; border: 2px solid var(--panel-border); border-radius: 14px;
+  padding: 11px 13px; margin-bottom: 9px;
+}
+.rb-dish-head { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+.rb-dish-emoji { font-size: 26px; }
+.rb-dish-name { font-size: 15px; font-weight: 900; }
+.rb-dish-rarity { font-size: 10px; font-weight: 800; color: #fff; padding: 2px 7px; border-radius: 8px; margin-left: auto; }
+.rb-formula { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; font-size: 12px; }
+.rb-pill {
+  display: inline-flex; align-items: center; gap: 3px; background: #FFF3E6;
+  border: 1.5px solid #E8C9A0; border-radius: 9px; padding: 3px 7px; font-weight: 800;
+}
+.rb-plus { font-weight: 900; color: var(--text-sub); }
+.rb-eq { font-weight: 900; color: var(--accent); font-size: 15px; }
+.rb-chain {
+  display: flex; align-items: center; gap: 5px; flex-wrap: wrap; font-size: 12px;
+  background: #fff; border: 2px solid var(--panel-border); border-radius: 12px;
+  padding: 9px 11px; margin-bottom: 7px;
+}
+.rb-arrow { color: var(--text-sub); font-weight: 900; }
+.rarity-legend { display: flex; gap: 6px; flex-wrap: wrap; margin: 2px 0 8px; }
+.rarity-legend span { font-size: 10px; font-weight: 800; color: #fff; padding: 3px 8px; border-radius: 8px; }
+
+/* basket peek */
+.bp-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+.bp-cell {
+  background: #fff; border: 2px solid var(--panel-border); border-radius: 12px;
+  padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 1px;
+}
+.bp-cell .e { font-size: 22px; }
+.bp-cell .n { font-size: 11px; font-weight: 800; }
+.bp-note { font-size: 12px; color: var(--text-sub); font-weight: 700; margin: 8px 0 12px; line-height: 1.5; }
+
+/* result overlay */
+#overlay { position: absolute; inset: 0; background: var(--overlay-bg); display: none;
+  flex-direction: column; align-items: center; justify-content: center; z-index: 100; padding: 32px; backdrop-filter: blur(5px); }
+#overlay.show { display: flex; }
+#ov-icon { font-size: 64px; margin-bottom: 8px; }
+#ov-title { font-size: 30px; font-weight: 900; color: #fff; margin-bottom: 5px; text-align: center; }
+#ov-sub { font-size: 15px; color: rgba(255,255,255,0.82); margin-bottom: 20px; text-align: center; }
+#ov-stars { display: flex; gap: 6px; margin-bottom: 24px; }
+.star { font-size: 40px; filter: grayscale(1) brightness(0.6); transition: filter 0.4s; }
+.star.on { filter: none; }
+#ov-btns { display: flex; gap: 10px; }
+.ov-btn {
+  background: #fff; color: var(--accent); border: none; border-radius: 50px;
+  padding: 15px 30px; font-size: 17px; font-weight: 900; font-family: inherit; cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.28); transition: transform 0.1s; -webkit-tap-highlight-color: transparent;
+}
+.ov-btn.ghost { background: rgba(255,255,255,0.18); color: #fff; }
+.ov-btn:active { transform: scale(0.95); }
+@keyframes card-flash { 0%,100%{transform:scale(1);} 50%{transform:scale(1.13);background:#C8F5D0;} }
+.ing-card.flash { animation: card-flash 0.38s ease; }
+
+/* ============================================================
+   ONBOARDING
+   ============================================================ */
+#onboarding { background: linear-gradient(180deg,#FFE9CF 0%, #FFF8F0 38%); overflow-y: auto; }
+#ob-scroll { padding: 26px 22px 22px; display: flex; flex-direction: column; }
+#ob-logo { font-size: 56px; text-align: center; line-height: 1; }
+#ob-title { font-size: 28px; font-weight: 900; color: var(--accent); text-align: center; letter-spacing: -1px; margin-top: 4px; }
+#ob-tagline { font-size: 14px; font-weight: 700; color: var(--text-sub); text-align: center; margin-top: 6px; line-height: 1.5; }
+.ob-card {
+  background: #fff; border: 2px solid var(--panel-border); border-radius: 16px;
+  padding: 14px 16px; margin-top: 14px; box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+}
+.ob-card h3 { font-size: 13px; font-weight: 900; color: var(--accent); margin-bottom: 9px; display: flex; align-items: center; gap: 6px; letter-spacing: 0.3px; }
+.ob-meta-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.ob-pill { font-size: 11px; font-weight: 800; background: #FFF3E6; border: 1.5px solid #E8C9A0; border-radius: 9px; padding: 4px 9px; color: var(--text); }
+.ob-pill b { color: var(--accent); }
+.ob-body { font-size: 13px; line-height: 1.7; color: var(--text); }
+.ob-body .lead { color: var(--text-sub); font-weight: 700; }
+.ob-steps { list-style: none; counter-reset: s; display: flex; flex-direction: column; gap: 7px; }
+.ob-steps li { position: relative; padding-left: 28px; font-size: 13px; line-height: 1.5; }
+.ob-steps li::before {
+  counter-increment: s; content: counter(s); position: absolute; left: 0; top: 0;
+  width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: #fff;
+  font-size: 12px; font-weight: 900; display: flex; align-items: center; justify-content: center;
+}
+.ob-gimmick { display: flex; gap: 11px; align-items: flex-start; padding: 9px 0; }
+.ob-gimmick + .ob-gimmick { border-top: 1px dashed #EADBC8; }
+.ob-gimmick .ico { font-size: 30px; flex-shrink: 0; line-height: 1.1; }
+.ob-gimmick .gname { font-size: 14px; font-weight: 900; }
+.ob-gimmick .gdesc { font-size: 12px; color: var(--text-sub); font-weight: 600; line-height: 1.5; margin-top: 2px; }
+#ob-cta {
+  margin-top: 20px; background: var(--accent); color: #fff; border: none; border-radius: 50px;
+  padding: 17px; font-size: 21px; font-weight: 900; font-family: inherit; cursor: pointer;
+  box-shadow: 0 6px 20px rgba(232,114,12,0.42); -webkit-tap-highlight-color: transparent; transition: transform 0.1s;
+}
+#ob-cta:active { transform: scale(0.96); }
+#ob-foot { font-size: 11px; color: var(--text-dim); text-align: center; margin-top: 12px; font-weight: 700; }
+
+/* toast */
+#toast {
+  position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%);
+  background: rgba(40,20,5,0.9); color: #fff; font-size: 13px; font-weight: 700;
+  padding: 9px 18px; border-radius: 20px; z-index: 120; opacity: 0; transition: opacity 0.3s; pointer-events: none;
+  white-space: nowrap;
+}
+#toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ===================== ONBOARDING ===================== -->
+  <div id="onboarding" class="screen active">
+    <div id="ob-scroll">
+      <div id="ob-logo">🍳</div>
+      <div id="ob-title">블라인드 머지 쿠킹</div>
+      <div id="ob-tagline">보드를 통째로 엎어두고, <b>기억해서 합쳐</b> 요리를 완성하는<br>블라인드 머지 퍼즐</div>
+
+      <div class="ob-card">
+        <h3>🎮 게임 소개</h3>
+        <div class="ob-meta-row">
+          <span class="ob-pill">장르 <b>블라인드 머지 퍼즐</b></span>
+          <span class="ob-pill">레퍼런스 <b>Flambe</b></span>
+        </div>
+        <div class="ob-body">
+          <p><span class="lead">한 줄 컨셉 —</span> 머지2(같은 것 2개→상위)와 그림찾기(신경쇠약)를 결합한 <b>요리 테마 캐주얼 퍼즐</b>.</p>
+          <p style="margin-top:7px"><span class="lead">기획 의도 —</span> 스토리·꾸미기 메타를 걷어내고 <b>기억 + 머지 설계</b>로 깊이를 만든다. 4050 여성 "두뇌 운동" 소구 + HTML5 포털(게임엔) 임베드에 맞는 짧은 레벨·포인트 연동 정합.</p>
+        </div>
+      </div>
+
+      <div class="ob-card">
+        <h3>📖 플레이 방법</h3>
+        <ol class="ob-steps">
+          <li>스테이지 시작 <b>5초</b> 동안 모든 카드가 공개 — <b>위치를 외우세요!</b></li>
+          <li>같은 재료·같은 단계 <b>2개를 탭</b>하면 상위 단계로 합쳐집니다. (뒤집힌 카드 + 이미 열린 카드도 짝 가능)</li>
+          <li>주문(완성 요리)에 필요한 재료를 만들면 <b>접시로 흡수</b>됩니다.</li>
+          <li>틀린 짝도 <b>무브를 소모</b> — 한도 안에 전 주문을 완성하면 클리어, 적게 쓸수록 ★ 높음.</li>
+        </ol>
+      </div>
+
+      <div class="ob-card">
+        <h3>✨ 핵심 기믹 2가지</h3>
+        <div class="ob-gimmick">
+          <span class="ico">🧺</span>
+          <div><div class="gname">바구니</div><div class="gdesc">우측 아이콘. 유효 머지를 일정 횟수 하면 <b>남은 빈 칸에 재료를 쏟아내</b> 2차 웨이브가 됩니다. 탭하면 내용물 미리보기 — 종류를 기억해 두세요.</div></div>
+        </div>
+        <div class="ob-gimmick">
+          <span class="ico">🍳</span>
+          <div><div class="gname">조리</div><div class="gdesc">화구·오븐·칼 등에 재료를 올리면 <b>시간(=무브)이 지난 뒤 진화 재료</b>로 바뀝니다. 시간이 곧 무브라 <b>조리 재료를 먼저 찾아 올려두는 것</b>이 핵심.</div></div>
+        </div>
+      </div>
+
+      <button id="ob-cta">▶ 플레이하러 가기</button>
+      <div id="ob-foot">면접용 프로토타입 · 게임엔(GameN) HTML5 포털 제안</div>
+    </div>
+  </div>
+
+  <!-- ===================== LOBBY ===================== -->
+  <div id="lobby" class="screen">
+    <div id="lobby-top">
+      <div class="chip" id="hearts-chip">❤️ <span id="hearts-val">5</span><small>/5</small></div>
+      <div class="currency-group">
+        <div class="chip">🪙 <span id="coin-val">1,250</span></div>
+        <div class="chip">💎 <span id="gem-val">20</span></div>
+      </div>
+    </div>
+    <div id="lobby-hero">
+      <div id="game-logo">🍳</div>
+      <div id="game-title">블라인드 머지 쿠킹</div>
+      <div id="game-sub">기억하고 · 합치고 · 요리 완성!</div>
+      <button id="btn-play">▶ 시작</button>
+      <div id="lobby-sub-actions">
+        <button class="mini-btn" id="btn-recipe-lobby"><span class="ico">📖</span>레시피북</button>
+        <button class="mini-btn" id="btn-skin"><span class="ico">👗</span>스킨</button>
+      </div>
+    </div>
+    <!-- light BM bar -->
+    <div id="bm-bar">
+      <div class="bm-item" data-bm="ad"><span class="ico">📺</span>광고 보상<span class="badge green">+5</span></div>
+      <div class="bm-item" data-bm="shop"><span class="ico">🛒</span>상점</div>
+      <div class="bm-item" data-bm="hearts"><span class="ico">❤️</span>하트 충전</div>
+      <div class="bm-item" data-bm="items"><span class="ico">🎒</span>아이템<span class="badge">8</span></div>
+    </div>
+  </div>
+
+  <!-- ===================== STAGE SELECT ===================== -->
+  <div id="select" class="screen">
+    <div class="scr-header">
+      <button class="back-btn" data-to="lobby">←</button>
+      <div class="scr-title">스테이지 선택</div>
+    </div>
+    <div id="select-scroll"></div>
+  </div>
+
+  <!-- ===================== GAME ===================== -->
+  <div id="game" class="screen">
+    <div id="topbar">
+      <div id="tb-left">
+        <button class="back-btn" data-to="select">←</button>
+        <div id="moves-wrap">
+          <div id="moves-label">남은 무브</div>
+          <div id="moves-num">20</div>
+        </div>
+      </div>
+      <div id="right-info">
+        <div id="stage-tag">한국 · 스테이지 1</div>
+        <button id="btn-recipe">📖 레시피</button>
+      </div>
+    </div>
+
+    <div id="order-panel">
+      <div id="dish-title">🍕 마르게리타 피자</div>
+      <div id="ing-row"></div>
+    </div>
+
+    <div id="prog-wrap"><div id="prog-bar"></div></div>
+
+    <div id="play-area">
+      <div id="board-area">
+        <div id="hint-bubble">여기랑 여기!</div>
+        <div id="board"></div>
+        <div id="preview-ov">
+          <div id="preview-num">3</div>
+          <div id="preview-label">👀 위치를 기억하세요!</div>
+        </div>
+      </div>
+      <div id="basket-col"></div>
+      <button id="companion" title="동료 ON/OFF (과금형)">
+        <span class="cmp-face">🧑‍🍳</span>
+        <span class="cmp-state">OFF</span>
+      </button>
+    </div>
+
+    <div id="itembar">
+      <button class="item-btn" id="it-peek"><span class="ico">🔁</span><span class="lbl">다시보기</span><span class="cnt" id="cnt-peek">1</span></button>
+      <button class="item-btn" id="it-hint"><span class="ico">💡</span><span class="lbl">힌트</span><span class="cnt" id="cnt-hint">3</span></button>
+      <button class="item-btn" id="it-skip"><span class="ico">⏭️</span><span class="lbl">스킵</span><span class="cnt" id="cnt-skip">1</span></button>
+    </div>
+
+    <div id="overlay">
+      <div id="ov-icon">🎉</div>
+      <div id="ov-title">클리어!</div>
+      <div id="ov-sub">훌륭해요!</div>
+      <div id="ov-stars"><span class="star">⭐</span><span class="star">⭐</span><span class="star">⭐</span></div>
+      <div id="ov-btns"></div>
+    </div>
+  </div>
+
+  <!-- ===================== RECIPE MODAL ===================== -->
+  <div id="recipe-modal" class="modal">
+    <div class="modal-sheet">
+      <div class="modal-head"><h2>📖 레시피북</h2><button class="modal-close" data-close>✕</button></div>
+      <div class="rb-tabs" id="rb-tabs"></div>
+      <div class="modal-body" id="rb-body"></div>
+    </div>
+  </div>
+
+  <!-- ===================== BASKET PEEK MODAL ===================== -->
+  <div id="basket-modal" class="modal">
+    <div class="modal-sheet">
+      <div class="modal-head"><h2>🧺 바구니 내용물</h2><button class="modal-close" data-close>✕</button></div>
+      <div class="modal-body">
+        <div class="bp-note" id="bp-note"></div>
+        <div class="bp-grid" id="bp-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+</div>
+
+<script>
+/* ============================================================
+   CONFIG — 모든 튜닝 값 (밸런스 = 리드 영역 / 아래는 [가정] 시작값)
+   ============================================================ */
+const CONFIG = {
+  FLIP_BACK_MS: 800,      // 미매칭 후 face-down 복귀
+  FLY_MS: 450,            // 재료 흡수 애니메이션
+  MERGE_MS: 380,
+  DANGER_THRESHOLD: 4,    // 무브 카운터 빨간색
+  PEEK_MS: 5000,          // 다시보기 공개 시간(전체)
+  BASKET_FLASH_MS: 1300,  // 바구니 투하 후 짧은 프리뷰 [가정]
+};
+
+/* 희귀도(=Lv) 4계층 — 원랜디식. 같은 계층끼리 동일 입력 수(2-머지). */
+const RARITY = [
+  { lv:1, name:'흔함',   color:'#9AA0A6' },
+  { lv:2, name:'안흔함', color:'#57b894' },
+  { lv:3, name:'특별함', color:'#4a90d9' },
+  { lv:4, name:'희귀함', color:'#a262d9' },
+];
+const rarityOf = lv => RARITY[Math.min(lv,RARITY.length)-1];
+
+/* 재료 메타 — 공통(common:true) + 지역 특산물(special). bg = Lv1..4 색 램프 */
+const ING = {
+  // 공통
+  flour:{ name:'밀가루', emoji:'🌾', common:true,  bg:['#FFF3CD','#FFE082','#FFD54F','#FFC107'] },
+  egg:  { name:'달걀',   emoji:'🥚', common:true,  bg:['#FFF8E1','#FFECB3','#FFE082','#FFD54F'] },
+  veg:  { name:'채소',   emoji:'🥬', common:true,  bg:['#E8F5E9','#C5E1A5','#AED581','#9CCC65'] },
+  rice: { name:'쌀',     emoji:'🍚', common:true,  bg:['#FAFAFA','#EEEEEE','#E0E0E0','#FFE0B2'] },
+  // 한국 특산
+  chili:  { name:'고춧가루', emoji:'🌶️', region:'kr', bg:['#FFCDD2','#EF9A9A','#E57373','#E53935'] },
+  anchovy:{ name:'멸치',     emoji:'🐟', region:'kr', bg:['#E1F5FE','#B3E5FC','#81D4FA','#4FC3F7'] },
+  // 일본 특산
+  nori:{ name:'김',   emoji:'🍙', region:'jp', bg:['#E0F2F1','#A5D6C7','#4DB6AC','#26A69A'] },
+  fish:{ name:'생선', emoji:'🐠', region:'jp', bg:['#E3F2FD','#90CAF9','#64B5F6','#42A5F5'] },
+  soy: { name:'간장', emoji:'🍶', region:'jp', bg:['#EFEBE9','#BCAAA4','#A1887F','#8D6E63'] },
+  // 이탈리아 특산
+  tomato:{ name:'토마토', emoji:'🍅', region:'it', bg:['#FFEBEE','#FFCDD2','#EF9A9A','#E53935'] },
+  cheese:{ name:'치즈',   emoji:'🧀', region:'it', bg:['#FFFDE7','#FFF59D','#FFF176','#FFEE58'] },
+  basil: { name:'바질',   emoji:'🌿', region:'it', bg:['#E8F5E9','#A5D6A7','#66BB6A','#43A047'] },
+  olive: { name:'올리브', emoji:'🫒', region:'it', bg:['#F1F8E9','#C5E1A5','#9CCC65','#7CB342'] },
+  // ── 진화(조리) 재료: 조리도구로 원재료를 변환해야 얻는다 ──
+  noodle:  { name:'면',      emoji:'🍜', cooked:true, bg:['#FFF8E1','#FFE082','#FFD54F','#FFC107'] },
+  bread:   { name:'빵',      emoji:'🍞', cooked:true, bg:['#FFF3E0','#FFCC80','#FFB74D','#FF9800'] },
+  sauce:   { name:'소스',    emoji:'🥫', cooked:true, bg:['#FFEBEE','#EF9A9A','#E57373','#E53935'] },
+  grilled: { name:'구이',    emoji:'🍢', cooked:true, bg:['#EFEBE9','#BCAAA4','#A1887F','#795548'] },
+  chopped: { name:'다진채소', emoji:'🥗', cooked:true, bg:['#F1F8E9','#C5E1A5','#9CCC65','#689F38'] },
+};
+/* 조리 변환표: 진화재료 ← 도구(원재료). time = 무브 횟수 */
+const COOK = {
+  noodle:  { tool:'칼',   toolEmoji:'🔪', from:'flour' },
+  bread:   { tool:'오븐', toolEmoji:'🔥', from:'flour' },
+  sauce:   { tool:'냄비', toolEmoji:'🍲', from:'tomato' },
+  grilled: { tool:'화구', toolEmoji:'🔥', from:'fish' },
+  chopped: { tool:'가위', toolEmoji:'✂️', from:'veg' },
+};
+function ingBg(type,lv){ const m=ING[type]; if(!m) return '#DDD'; return m.bg[Math.min(lv-1,m.bg.length-1)]; }
+
+/* ============================================================
+   레벨 데이터테이블 — 3 챕터(한국·일본·이탈리아) × 하/중/상
+   각 스테이지: order(완성 요리 = 필요 재료@목표Lv) 로 정의 →
+   클로저 멀티셋은 자동 분해(decompose). baskets = 분해 멀티셋의 부분집합.
+   ============================================================ */
+const FREE = { peek:1, hint:3, skip:1 };   // 스테이지당 무료 아이템(skip=옛 동료요리사 자리)
+const CHAPTERS = [
+  {
+    id:'kr', name:'한국', flag:'🇰🇷', theme:'얼큰·구수한 한식', gimmick:'바구니·조리',
+    stages:[
+      { diff:'하', dish:{name:'떡볶이', emoji:'🍢'},
+        order:[['rice',2],['chili',2],['veg',2]],
+        board:{cols:3,rows:3}, previewSec:5, movesLimit:5, starT:[3,4],
+        baskets:[], free:FREE },
+      { diff:'중', dish:{name:'김치찌개', emoji:'🍲'},
+        order:[['chili',3],['veg',3],['anchovy',2]],
+        board:{cols:4,rows:3}, previewSec:5, movesLimit:10, starT:[7,8],
+        baskets:[], free:FREE },
+      { diff:'상', dish:{name:'비빔밥', emoji:'🍱'},
+        order:[['rice',3],['veg',3],['egg',2],['chili',2],['anchovy',2]],
+        board:{cols:4,rows:4}, previewSec:5, movesLimit:14, starT:[10,12],
+        baskets:[ { counter:3, cards:[['rice',1],['rice',1],['veg',1],['veg',1]] } ],
+        free:FREE },
+      { diff:'최상', dish:{name:'비빔국수', emoji:'🍜'},
+        order:[['noodle',2,{time:3}],['chopped',2,{time:2}],['chili',3],['egg',2]],
+        board:{cols:4,rows:4}, previewSec:5, movesLimit:13, starT:[9,11],
+        baskets:[ { counter:3, cards:[['chili',1],['chili',1]] } ],
+        free:FREE },
+    ],
+  },
+  {
+    id:'jp', name:'일본', flag:'🇯🇵', theme:'담백·정갈한 일식', gimmick:'바구니·조리',
+    stages:[
+      { diff:'하', dish:{name:'오니기리', emoji:'🍙'},
+        order:[['rice',2],['nori',2],['fish',2]],
+        board:{cols:3,rows:3}, previewSec:5, movesLimit:5, starT:[3,4],
+        baskets:[], free:FREE },
+      { diff:'중', dish:{name:'라멘', emoji:'🍜'},
+        order:[['flour',3],['fish',2],['egg',2],['soy',2]],
+        board:{cols:4,rows:3}, previewSec:5, movesLimit:10, starT:[7,8],
+        baskets:[], free:FREE },
+      { diff:'상', dish:{name:'초밥세트', emoji:'🍣'},
+        order:[['rice',3],['fish',3],['nori',2],['soy',2],['egg',2]],
+        board:{cols:4,rows:4}, previewSec:5, movesLimit:14, starT:[10,12],
+        baskets:[ { counter:3, cards:[['rice',1],['rice',1],['fish',1],['fish',1]] } ],
+        free:FREE },
+      { diff:'최상', dish:{name:'모둠나베', emoji:'🍲'},
+        order:[['grilled',2,{time:3}],['noodle',2,{time:3}],['nori',3],['soy',2]],
+        board:{cols:4,rows:4}, previewSec:5, movesLimit:13, starT:[9,11],
+        baskets:[ { counter:3, cards:[['nori',1],['nori',1]] } ],
+        free:FREE },
+    ],
+  },
+  {
+    id:'it', name:'이탈리아', flag:'🇮🇹', theme:'풍미·치즈의 이탈리아', gimmick:'바구니(다중)·조리',
+    stages:[
+      { diff:'하', dish:{name:'카프레제', emoji:'🥗'},
+        order:[['tomato',2],['cheese',2],['basil',2]],
+        board:{cols:3,rows:3}, previewSec:5, movesLimit:5, starT:[3,4],
+        baskets:[], free:FREE },
+      { diff:'중', dish:{name:'마르게리타 피자', emoji:'🍕'},
+        order:[['flour',3],['tomato',2],['cheese',2],['basil',2]],
+        board:{cols:4,rows:3}, previewSec:5, movesLimit:10, starT:[7,8],
+        baskets:[], free:FREE },
+      { diff:'상', dish:{name:'라자냐', emoji:'🍝'},
+        order:[['flour',3],['tomato',3],['cheese',3],['egg',2],['olive',2]],
+        board:{cols:4,rows:4}, previewSec:5, movesLimit:15, starT:[11,13],
+        baskets:[
+          { counter:3, cards:[['flour',1],['flour',1],['tomato',1]] },
+          { counter:7, cards:[['cheese',1],['cheese',1],['tomato',1]] },
+        ],
+        free:FREE },
+      { diff:'최상', dish:{name:'칼조네', emoji:'🥟'},
+        order:[['bread',2,{time:4}],['sauce',2,{time:3}],['cheese',3],['olive',2]],
+        board:{cols:4,rows:4}, previewSec:5, movesLimit:14, starT:[10,12],
+        baskets:[ { counter:3, cards:[['cheese',1],['cheese',1]] } ],
+        free:FREE },
+    ],
+  },
+];
+
+/* ============================================================
+   클로저 유틸 — order → Lv1 멀티셋 분해, 카드수, 검증
+   ============================================================ */
+function decompose(order){
+  // 각 주문 → 2^(lv-1) 개의 [base,1]. 조리 주문은 원재료(base=COOK[type].from)로 분해.
+  const out = [];
+  order.forEach(it => {
+    const type=it[0], lv=it[1];
+    const base = it[2] ? COOK[type].from : type;   // 조리 주문이면 원재료
+    const n = 1 << (lv-1);
+    for(let i=0;i<n;i++) out.push([base,1]);
+  });
+  return out;
+}
+function countMultiset(cards){ const m={}; cards.forEach(([t])=>m[t]=(m[t]||0)+1); return m; }
+
+/* 완전기억 솔버 — 멀티셋 시뮬레이션으로 "정말 완성 가능한가"를 증명.
+   바구니는 절대 머지 임계(at)에 도달하면 내용물을 투입. 위치/기억 무시(perfect play). */
+function simulateSolve(stg){
+  const counts={}; const add=(t,lv,n=1)=>{ const k=t+'_'+lv; counts[k]=(counts[k]||0)+n; };
+  const full=decompose(stg.order);
+  const basketCards=(stg.baskets||[]).flatMap(b=>b.cards);
+  subtractMultiset(full, basketCards).forEach(([t,lv])=>add(t,lv,1));   // 보드 시작분
+  const baskets=(stg.baskets||[]).map(b=>({at:b.counter, cards:b.cards, dumped:false}));
+  // 주문: 일반 vs 조리(cook). 조리는 base@lv 적재 후 time 무브(틱) 경과 시 evolved@lv 산출.
+  const orders=stg.order.map(it => it[2]
+    ? { t:it[0], lv:it[1], done:false, cook:{ base:COOK[it[0]].from, time:it[2].time, loaded:false, remain:0 } }
+    : { t:it[0], lv:it[1], done:false });
+  let merges=0, guard=0;
+  const tickCooks=()=>orders.forEach(o=>{ if(o.cook && o.cook.loaded && !o.done){ o.cook.remain--; if(o.cook.remain<=0) add(o.t,o.lv); } });
+  const dumpDue=()=>baskets.forEach(b=>{ if(!b.dumped && merges>=b.at){ b.cards.forEach(([t,lv])=>add(t,lv,1)); b.dumped=true; } });
+  const loadCooks=()=>orders.forEach(o=>{ if(o.cook && !o.cook.loaded && !o.done){ const k=o.cook.base+'_'+o.lv; if(counts[k]>0){ counts[k]--; o.cook.loaded=true; o.cook.remain=o.cook.time; } } });
+  const absorb=()=>{ let any=true; while(any){ any=false; orders.forEach(o=>{ if(!o.done){ const k=o.t+'_'+o.lv; if(counts[k]>0){ counts[k]--; o.done=true; any=true; } } }); } };
+  dumpDue(); loadCooks(); absorb();
+  while(guard++<999){
+    let merged=false;
+    for(const k in counts){ if(counts[k]>=2){ const us=k.lastIndexOf('_'); const t=k.slice(0,us), L=+k.slice(us+1);
+      counts[k]-=2; add(t,L+1); merges++; merged=true; tickCooks(); dumpDue(); loadCooks(); absorb(); break; } }
+    if(!merged) break;
+  }
+  const leftover=Object.values(counts).reduce((a,b)=>a+b,0);
+  return {
+    allDone:orders.every(o=>o.done), leftover, merges,
+    undumped:baskets.filter(b=>!b.dumped).length,
+    cooksPending:orders.filter(o=>o.cook && o.cook.loaded && !o.done).length,   // 적재됐으나 틱 부족
+    cooksUnloaded:orders.filter(o=>o.cook && !o.cook.loaded && !o.done).length, // 원재료 못 만듦
+  };
+}
+
+/* 스테이지 유효 검증: ① 클로저(잔여0) ② 슬롯 ③ 완성 가능(솔버) */
+function validateStage(stg, label){
+  const full=decompose(stg.order), fullCount=countMultiset(full);
+  const basketCards=(stg.baskets||[]).flatMap(b=>b.cards), basketCount=countMultiset(basketCards);
+  const problems=[];
+  for(const t in basketCount) if((fullCount[t]||0) < basketCount[t]) problems.push(`바구니 ${t} ${basketCount[t]}>전체 ${fullCount[t]||0}`);
+  const slots=stg.board.cols*stg.board.rows;
+  const boardStart=full.length-basketCards.length;
+  if(boardStart>slots) problems.push(`보드 시작카드 ${boardStart}>슬롯 ${slots}`);
+  // 투하 임계가 보드 시작 후 도달 가능한지(보수적): at ≤ 보드만으로 가능한 머지수 + 누적
+  const sol=simulateSolve(stg);
+  if(!sol.allDone) problems.push(`완성 불가(솔버): 미완 주문 존재`);
+  if(sol.leftover>0) problems.push(`잔여 카드 ${sol.leftover} (솔버)`);
+  if(sol.undumped>0) problems.push(`미투하 바구니 ${sol.undumped} — 임계(counter) 너무 높음(softlock 위험)`);
+  if(sol.cooksUnloaded>0) problems.push(`조리 원재료 미완성 ${sol.cooksUnloaded}`);
+  if(sol.cooksPending>0) problems.push(`조리 미완료 ${sol.cooksPending} — 무브(틱) 부족(time 과대 or 머지 부족)`);
+  const cookN=stg.order.filter(it=>it[2]).length;
+  if(problems.length) console.warn(`[STAGE FAIL] ${label}:`, problems);
+  else console.log(`[STAGE OK] ${label} — 카드 ${full.length}(보드 ${boardStart}+바구니 ${basketCards.length}/슬롯 ${slots}), 솔버 ${sol.merges}머지${cookN?`, 조리 ${cookN}`:''}, 한도 ${stg.movesLimit}`);
+  return problems.length===0;
+}
+// 로드 시 전 스테이지 검증
+CHAPTERS.forEach(ch => ch.stages.forEach((s,i)=> validateStage(s, `${ch.name} ${s.diff}(${s.dish.name})`)));
+
+/* ============================================================
+   상태
+   ============================================================ */
+const G = {
+  ch:0, st:0, stage:null,
+  board:[],          // {type,lv,face:'d'|'u'|'e'}
+  baskets:[],        // {at, cards, dumped}
+  stations:[],       // {evolved,lv,base,tool,toolEmoji,time,busy,remain}
+  movesLeft:0,
+  orderDone:[],
+  first:null, firstWasUp:false,
+  locked:false,
+  reveal:false,      // 전체 공개(프리뷰/다시보기) 모드
+  mergeCount:0,
+  ended:false,       // 승/패 1회성 — 클리어/게임오버 중복·역전 방지
+  items:{peek:0,hint:0,skip:0},
+  companion:false,   // 미구현(과금형 데모)
+};
+
+/* ============================================================
+   DOM
+   ============================================================ */
+const $ = id => document.getElementById(id);
+const screens = { onboarding:$('onboarding'), lobby:$('lobby'), select:$('select'), game:$('game') };
+const $board=$('board'), $basketCol=$('basket-col'), $ingRow=$('ing-row');
+const $movesNum=$('moves-num'), $stageTag=$('stage-tag'), $dishTitle=$('dish-title'), $progBar=$('prog-bar');
+const $overlay=$('overlay'), $ovIcon=$('ov-icon'), $ovTitle=$('ov-title'), $ovSub=$('ov-sub'), $ovStars=$('ov-stars'), $ovBtns=$('ov-btns');
+const $previewOv=$('preview-ov'), $previewNum=$('preview-num');
+const $hint=$('hint-bubble'), $toast=$('toast');
+
+function showScreen(name){ for(const k in screens) screens[k].classList.toggle('active', k===name); }
+function toast(msg){ $toast.textContent=msg; $toast.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>$toast.classList.remove('show'),1600); }
+
+/* ============================================================
+   LOBBY 이벤트
+   ============================================================ */
+$('btn-play').addEventListener('click', ()=>{ buildSelect(); showScreen('select'); });
+$('btn-recipe-lobby').addEventListener('click', ()=> openRecipe(0));
+$('btn-skin').addEventListener('click', ()=> toast('스킨 상점 — 준비 중 (BM 데모)'));
+document.querySelectorAll('#bm-bar .bm-item').forEach(el=>{
+  el.addEventListener('click', ()=>{
+    const map={ad:'광고 시청 보상 — 데모',shop:'상점 — 준비 중 (BM 데모)',hearts:'하트 충전 — 데모',items:'아이템 보관함 — 데모'};
+    toast(map[el.dataset.bm]||'준비 중');
+  });
+});
+document.querySelectorAll('.back-btn').forEach(b=> b.addEventListener('click', ()=>{
+  const to=b.dataset.to; if(to==='select'){ buildSelect(); } showScreen(to);
+}));
+
+/* ============================================================
+   STAGE SELECT
+   ============================================================ */
+function buildSelect(){
+  const wrap=$('select-scroll'); wrap.innerHTML='';
+  CHAPTERS.forEach((ch,ci)=>{
+    const card=document.createElement('div'); card.className='chapter';
+    let stagesHtml='';
+    ch.stages.forEach((s,si)=>{
+      const cards=decompose(s.order).length;
+      const basket=(s.baskets&&s.baskets.length)?` · 🧺${s.baskets.length}`:'';
+      const cookN=s.order.filter(it=>it[2]).length;
+      const cook=cookN?` · 🍳${cookN}`:'';
+      stagesHtml +=
+        `<div class="stage-card" data-ch="${ci}" data-st="${si}">
+           <span class="stage-dish-emoji">${s.dish.emoji}</span>
+           <div class="stage-info">
+             <div class="stage-dish-name">${s.dish.name}</div>
+             <div class="stage-detail">카드 ${cards}장 · ${s.board.cols}×${s.board.rows}${basket}${cook} · ⏱${s.movesLimit}</div>
+             <div class="stage-stars">★★★</div>
+           </div>
+           <span class="diff-tag diff-${s.diff}">${s.diff}</span>
+         </div>`;
+    });
+    card.innerHTML =
+      `<div class="chapter-head">
+         <span class="chapter-flag">${ch.flag}</span>
+         <div class="chapter-meta"><div class="chapter-name">${ch.name}</div><div class="chapter-theme">${ch.theme}</div></div>
+         <span class="chapter-gimmick">기믹 ${ch.gimmick}</span>
+       </div>
+       <div class="stage-list">${stagesHtml}</div>`;
+    wrap.appendChild(card);
+  });
+  wrap.querySelectorAll('.stage-card').forEach(el=>{
+    el.addEventListener('click', ()=> startStage(+el.dataset.ch, +el.dataset.st));
+  });
+}
+
+/* ============================================================
+   스테이지 시작 + 프리뷰
+   ============================================================ */
+function startStage(ci,si){
+  closeOverlay();
+  const ch=CHAPTERS[ci], stg=ch.stages[si];
+  G.ch=ci; G.st=si; G.stage=stg;
+  G.movesLeft=stg.movesLimit;
+  G.first=null; G.firstWasUp=false; G.locked=true; G.reveal=true; G.ended=false;
+  G.orderDone=stg.order.map(()=>false);
+  G.mergeCount=0;
+  G.items={ peek:stg.free.peek, hint:stg.free.hint, skip:stg.free.skip };
+  G.companion=false;
+  // 조리도구: 조리 주문에서 도출
+  G.stations=stg.order.filter(it=>it[2]).map(it=>{
+    const c=COOK[it[0]];
+    return { evolved:it[0], lv:it[1], base:c.from, tool:c.tool, toolEmoji:c.toolEmoji, time:it[2].time, busy:false, remain:0 };
+  });
+
+  // 보드 구성: 분해 멀티셋 - 바구니 = 보드 시작 카드(전부 Lv1), 셔플
+  const full=decompose(stg.order);
+  const basketCards=(stg.baskets||[]).flatMap(b=>b.cards);
+  const boardCards=subtractMultiset(full, basketCards);  // [[type,1],...]
+  shuffle(boardCards);
+  const slots=stg.board.cols*stg.board.rows;
+  G.board=[];
+  for(let i=0;i<slots;i++){
+    if(i<boardCards.length) G.board.push({type:boardCards[i][0], lv:boardCards[i][1], face:'d'});
+    else G.board.push({type:null,lv:0,face:'e'});
+  }
+  // 바구니 상태: at = 자동 투하 절대 머지 임계(전역 카운트다운)
+  G.baskets=(stg.baskets||[]).map(b=>({at:b.counter, cards:b.cards.slice(), dumped:false}));
+
+  renderAll();
+  showScreen('game');
+  updateItemBtns();
+  updateCompanionBtn();
+  runPreview(stg.previewSec);
+}
+
+function subtractMultiset(full, sub){
+  const need=countMultiset(sub); const out=[];
+  full.forEach(c=>{ if(need[c[0]]>0){ need[c[0]]--; } else out.push(c.slice()); });
+  return out;
+}
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } }
+
+function runPreview(sec){
+  G.reveal=true; G.locked=true; renderBoard();
+  let remain=Math.ceil(sec);
+  $previewOv.classList.add('show');
+  const tick=()=>{
+    $previewNum.textContent=remain;
+    $previewNum.style.animation='none'; void $previewNum.offsetWidth; $previewNum.style.animation='';
+    if(remain<=0){
+      $previewOv.classList.remove('show');
+      G.reveal=false; G.locked=false; renderBoard();
+      return;
+    }
+    remain--;
+    setTimeout(tick, 1000);
+  };
+  tick();
+}
+
+/* ============================================================
+   렌더
+   ============================================================ */
+function renderAll(){
+  const stg=G.stage, ch=CHAPTERS[G.ch];
+  $stageTag.textContent=`${ch.name} · ${stg.diff} 난이도`;
+  $dishTitle.textContent=`${stg.dish.emoji} ${stg.dish.name}`;
+  updateMoves(); renderIngRow(); renderBoard(); renderRightCol(); updateProg();
+}
+function updateMoves(){
+  $movesNum.textContent=G.movesLeft;
+  $movesNum.classList.toggle('danger', G.movesLeft<=CONFIG.DANGER_THRESHOLD);
+}
+function renderIngRow(){
+  const stg=G.stage; $ingRow.innerHTML='';
+  stg.order.forEach((req,i)=>{
+    const m=ING[req[0]]||{name:req[0],emoji:'?'}; const done=G.orderDone[i];
+    const cookBadge = req[2] ? `<span class="ing-cook">${COOK[req[0]].toolEmoji}</span>` : '';
+    const card=document.createElement('div'); card.className='ing-card'+(done?' done':''); card.id=`ic${i}`;
+    card.innerHTML=`${cookBadge}<span class="ing-emoji">${m.emoji}</span><span class="ing-name">${m.name}</span><span class="ing-lv">Lv${req[1]}</span><span class="ing-check">✓</span>`;
+    $ingRow.appendChild(card);
+  });
+}
+function hasRightCol(){ return G.baskets.length>0 || G.stations.length>0; }
+function tileSize(){
+  const cols=G.stage.board.cols;
+  const colW = hasRightCol() ? 70 : 0;
+  const avail=Math.min(390,window.innerWidth)-12-colW;
+  const s=Math.floor((avail-(cols-1)*8)/cols);
+  return Math.max(50, Math.min(84, s));
+}
+function renderBoard(){
+  const ts=tileSize();
+  $board.style.gridTemplateColumns=`repeat(${G.stage.board.cols}, ${ts}px)`;
+  $board.innerHTML='';
+  G.board.forEach((cell,idx)=> $board.appendChild(makeTileEl(cell,idx,ts)));
+}
+function makeTileEl(cell,idx,ts){
+  ts=ts||tileSize();
+  const el=document.createElement('div'); el.className='tile'; el.dataset.idx=idx;
+  el.style.cssText=`width:${ts}px;height:${ts}px;`;
+  if(cell.face==='e'){ el.classList.add('empty'); return el; }
+  if(cell.face==='u' || G.reveal){ applyUpStyle(el,cell); }
+  else { el.classList.add('down'); el.innerHTML=`<span class="t-q">?</span>`; }
+  return el;
+}
+function applyUpStyle(el,cell){
+  el.classList.remove('down'); el.classList.add('up');
+  const m=ING[cell.type]||{name:cell.type,emoji:'?'};
+  el.style.background=ingBg(cell.type,cell.lv);
+  el.innerHTML=`<span class="t-emoji">${m.emoji}</span><span class="t-name">${m.name}</span><span class="t-lv">Lv${cell.lv}</span>`;
+}
+function getTileEl(idx){ return $board.querySelector(`.tile[data-idx="${idx}"]`); }
+function refreshTileEl(idx){ const old=getTileEl(idx); if(!old) return; $board.replaceChild(makeTileEl(G.board[idx],idx),old); }
+function updateProg(){ const done=G.orderDone.filter(Boolean).length; $progBar.style.width=(done/G.stage.order.length*100)+'%'; }
+
+function renderRightCol(){
+  $basketCol.innerHTML='';
+  // ── 바구니 ──
+  const live=G.baskets.filter(b=>!b.dumped);
+  let soonest=null, soonRem=Infinity;
+  live.forEach(b=>{ const rem=b.at-G.mergeCount; if(rem<soonRem){ soonRem=rem; soonest=b; } });
+  live.forEach((b)=>{
+    const realIdx=G.baskets.indexOf(b);
+    const rem=Math.max(0, b.at-G.mergeCount);
+    const el=document.createElement('div'); el.className='basket'+(b===soonest?' armed':'');
+    el.dataset.bidx=realIdx;
+    el.innerHTML=`🧺<span class="b-order">${realIdx+1}</span><span class="b-badge">${rem}</span>`;
+    el.addEventListener('click', ()=> openBasketPeek(realIdx));
+    $basketCol.appendChild(el);
+  });
+  // ── 조리도구 ──
+  G.stations.forEach((st,idx)=>{
+    const baseM=ING[st.base], outM=ING[st.evolved];
+    const el=document.createElement('div'); el.className='station'+(st.busy?' busy':'');
+    el.dataset.sidx=idx;
+    const timeLabel = st.busy ? `⏱${st.remain}` : `⏱${st.time}`;
+    el.innerHTML=
+      `<span class="s-tool">${st.toolEmoji}</span>`+
+      `<span class="s-io">${st.busy?outM.emoji:baseM.emoji}</span>`+
+      `<span class="s-time">${timeLabel}</span>`+
+      `<span class="s-cap">${baseM.emoji}→${outM.emoji}</span>`;
+    el.addEventListener('click', ()=> onStationClick(idx));
+    $basketCol.appendChild(el);
+  });
+}
+
+/* ============================================================
+   입력
+   ============================================================ */
+$board.addEventListener('click', onBoardClick);
+function onBoardClick(e){
+  if(G.locked) return;
+  const tile=e.target.closest('.tile'); if(!tile) return;
+  const idx=parseInt(tile.dataset.idx); if(isNaN(idx)) return;
+  const cell=G.board[idx]; if(!cell||cell.face==='e') return;
+  const hadFirst=G.first;
+  if(cell.face==='u') handleUpTap(idx); else handleDownTap(idx);
+  // 동료 ON: 짝 선택이 완결된 행동(둘째 탭)일 때만 자동으로 하나 더
+  if(G.companion && hadFirst!==null && G.first===null) companionAssist();
+}
+function handleUpTap(idx){
+  if(G.first===null){ G.first=idx; G.firstWasUp=true; getTileEl(idx)?.classList.add('selected'); return; }
+  if(G.first===idx){ getTileEl(idx)?.classList.remove('selected'); G.first=null; G.firstWasUp=false; return; }
+  const a=G.first,b=idx; getTileEl(a)?.classList.remove('selected'); G.first=null; G.firstWasUp=false;
+  const ca=G.board[a],cb=G.board[b];
+  if(!ca||ca.face!=='u'||!cb){ return; }                 // 스테일 선택 방어(무브 소모 없이 취소)
+  spendMove();
+  if(ca.type===cb.type && ca.lv===cb.lv) doMerge(a,b); else afterAction();
+}
+function handleDownTap(idx){
+  flipReveal(idx);
+  if(G.first===null){ G.first=idx; G.firstWasUp=false; return; }
+  const a=G.first,b=idx, wasUp=G.firstWasUp;
+  G.first=null; G.firstWasUp=false; getTileEl(a)?.classList.remove('selected');
+  const ca=G.board[a],cb=G.board[b];
+  if(!ca||ca.face==='e'||!cb){ return; }                 // 스테일 선택 방어
+  spendMove();
+  if(ca.type===cb.type && ca.lv===cb.lv) doMerge(a,b);
+  else { if(wasUp) doFlipBackOne(b); else doFlipBack(a,b); }
+}
+function flipReveal(idx){
+  G.board[idx].face='u'; const el=getTileEl(idx); if(!el) return;
+  applyUpStyle(el,G.board[idx]); el.classList.add('flip'); setTimeout(()=>el.classList.remove('flip'),180);
+}
+
+/* ============================================================
+   머지
+   ============================================================ */
+function doMerge(a,b,opts){
+  opts=opts||{};
+  const type=G.board[a].type, lv=G.board[a].lv+1;
+  G.board[a]={type:null,lv:0,face:'e'};
+  G.board[b]={type,lv,face:'u'};
+  refreshTileEl(a);
+  const elB=getTileEl(b);
+  if(elB){ applyUpStyle(elB,G.board[b]); elB.classList.remove('down','selected','hint-glow'); elB.classList.add('up','merge-pop'); setTimeout(()=>elB.classList.remove('merge-pop'),CONFIG.MERGE_MS); }
+  onValidMerge();
+  checkOrderMatch(b,type,lv,opts);
+}
+function doFlipBack(a,b){
+  G.locked=true;
+  setTimeout(()=>{ [a,b].forEach(idx=>resetDown(idx)); G.locked=false; afterAction(); }, CONFIG.FLIP_BACK_MS);
+}
+function doFlipBackOne(idx){
+  G.locked=true;
+  setTimeout(()=>{ resetDown(idx); G.locked=false; afterAction(); }, CONFIG.FLIP_BACK_MS);
+}
+function resetDown(idx){
+  const cell=G.board[idx]; if(cell&&cell.face==='u'){ cell.face='d'; const el=getTileEl(idx);
+    if(el){ el.classList.remove('up','selected','hint-glow'); el.classList.add('down'); el.style.background=''; el.innerHTML=`<span class="t-q">?</span>`; } }
+}
+
+/* 유효 머지 발생 → 전역 카운트다운: 임계 도달 바구니 투하 */
+function onValidMerge(){
+  G.mergeCount++;
+  flushPendingStations();   // 빈칸 부족으로 보류됐던 조리 산출 재시도(머지가 칸을 비움)
+  // 임계 도달 바구니 투하 — 빈칸 부족하면 보류(다음 머지에 재시도). 카드 유실 방지(예외처리).
+  G.baskets.forEach(b=>{ if(!b.dumped && G.mergeCount>=b.at) tryDumpBasket(b); });
+  renderRightCol();
+}
+// 빈칸 없어 보류된 조리 산출(st.pending)을 칸이 생기면 내보낸다
+function flushPendingStations(){
+  G.stations.forEach(st=>{
+    if(!st.pending) return;
+    const e=G.board.findIndex(c=>c.face==='e'); if(e<0) return;
+    st.pending=false;
+    G.board[e]={type:st.evolved,lv:st.lv,face:'u'}; refreshTileEl(e); getTileEl(e)?.classList.add('drop');
+    toast(`✅ ${ING[st.evolved].name} 완성!`);
+    checkOrderMatch(e, st.evolved, st.lv, {auto:true});
+  });
+}
+function tryDumpBasket(b){
+  const empties=G.board.reduce((a,c,i)=>{ if(c.face==='e') a.push(i); return a; },[]);
+  if(empties.length < b.cards.length) return;          // 슬롯 부족 → 보류(유실 금지)
+  b.dumped=true;
+  const placed=[];
+  for(let i=0;i<b.cards.length;i++){
+    const slot=empties[i]; G.board[slot]={type:b.cards[i][0],lv:b.cards[i][1],face:'d'}; placed.push(slot);
+    refreshTileEl(slot); getTileEl(slot)?.classList.add('drop');
+  }
+  toast('🧺 바구니가 재료를 쏟았어요!');
+  flashReveal(placed);
+}
+function flashReveal(idxs){
+  G.locked=true;
+  idxs.forEach(i=>{ const el=getTileEl(i); if(el && G.board[i].face==='d'){ applyUpStyle(el,G.board[i]); } });
+  setTimeout(()=>{
+    idxs.forEach(i=>{ const el=getTileEl(i); if(el && G.board[i].face==='d'){ el.classList.remove('up'); el.classList.add('down'); el.style.background=''; el.innerHTML=`<span class="t-q">?</span>`; } });
+    G.locked=false;
+    afterAction();                                     // 투하 후 막힘/완성 재검사
+  }, CONFIG.BASKET_FLASH_MS);
+}
+
+/* ============================================================
+   주문 완성
+   ============================================================ */
+function checkOrderMatch(tileIdx,type,lv,opts){
+  opts=opts||{};
+  const stg=G.stage; let hit=-1;
+  for(let i=0;i<stg.order.length;i++){ const r=stg.order[i]; if(!G.orderDone[i] && r[0]===type && r[1]===lv){ hit=i; break; } }
+  if(hit>=0){ G.orderDone[hit]=true; flyToOrder(tileIdx,hit,opts); }
+  else { if(!opts.auto) afterAction(); }
+}
+function flyToOrder(tileIdx,hitIdx,opts){
+  opts=opts||{};
+  const el=getTileEl(tileIdx); if(el) el.classList.add('fly');
+  setTimeout(()=>{
+    G.board[tileIdx]={type:null,lv:0,face:'e'}; refreshTileEl(tileIdx);
+    const card=$(`ic${hitIdx}`); if(card){ card.classList.add('done','flash'); setTimeout(()=>card.classList.remove('flash'),400); }
+    updateProg();
+    if(G.orderDone.every(Boolean)) setTimeout(showClear,350);
+    else if(!opts.auto) afterAction();
+  }, CONFIG.FLY_MS);
+}
+function spendMove(){
+  G.movesLeft=Math.max(0,G.movesLeft-1); updateMoves();
+  tickStations();   // 시간 = 무브: 매 무브마다 조리 진행
+}
+function afterAction(){
+  if(G.locked || G.ended) return;                       // 잠금 중엔 해제 경로가 재호출
+  if(G.orderDone.every(Boolean)){ setTimeout(showClear,300); return; }   // showClear가 ended 가드
+  // 모든 판정은 애니메이션(흡수/조리 산출 fly)이 가라앉은 뒤 + ended/완성 재확인 → 클리어 우선
+  if(G.movesLeft<=0){
+    setTimeout(()=>{ if(!G.ended && !G.orderDone.every(Boolean)) showGameOver(cookPending()?'cook':'moves'); }, CONFIG.FLY_MS+200);
+    return;
+  }
+  setTimeout(()=>{
+    if(G.locked || G.ended || G.orderDone.every(Boolean)) return;
+    if(!findPair()) showGameOver(cookPending() ? 'cook' : 'stuck');
+  }, CONFIG.FLY_MS+150);
+}
+function anyStationBusy(){ return G.stations.some(s=>s.busy); }
+// 미완 조리 주문이 남아있나(적재 여부 무관) — 막힘 시 '조리 시간 부족' 판정
+function cookPending(){ return G.stage.order.some((it,i)=> it[2] && !G.orderDone[i]); }
+
+/* ============================================================
+   조리도구 (화구/오븐/냄비/가위/칼)
+   ============================================================ */
+function onStationClick(idx){
+  if(G.locked) return;
+  const st=G.stations[idx]; if(!st) return;
+  if(st.busy){ toast(`${st.toolEmoji} ${st.tool} 조리 중 — ${st.remain}무브 남음`); return; }
+  // 선택된(face-up) 재료가 이 도구의 원재료와 맞으면 적재(무료)
+  if(G.first===null){ toast(`${ING[st.base].name} Lv${st.lv}를 먼저 선택해 올리세요`); return; }
+  const c=G.board[G.first];
+  if(!(c && c.face==='u' && c.type===st.base && c.lv===st.lv)){
+    toast(`이 도구엔 ${ING[st.base].name} Lv${st.lv}만 올릴 수 있어요`); return;
+  }
+  // 적재
+  getTileEl(G.first)?.classList.remove('selected');
+  G.board[G.first]={type:null,lv:0,face:'e'}; refreshTileEl(G.first);
+  G.first=null; G.firstWasUp=false;
+  st.busy=true; st.remain=st.time;
+  renderRightCol();
+  toast(`${st.toolEmoji} 조리 시작! ${st.time}무브 후 ${ING[st.evolved].name} 완성`);
+}
+function tickStations(){
+  G.stations.forEach(st=>{ if(st.busy){ st.remain--; if(st.remain<=0) stationOutput(st); } });
+  renderRightCol();
+}
+function stationOutput(st){
+  st.busy=false; st.remain=0;
+  const empties=G.board.reduce((a,c,i)=>{ if(c.face==='e') a.push(i); return a; },[]);
+  if(!empties.length){ toast('조리 완료! 빈 칸이 없어 대기'); st.pending=true; return; }
+  const slot=empties[0];
+  G.board[slot]={type:st.evolved,lv:st.lv,face:'u'};
+  refreshTileEl(slot); getTileEl(slot)?.classList.add('drop');
+  toast(`✅ ${ING[st.evolved].name} 완성!`);
+  checkOrderMatch(slot, st.evolved, st.lv, {auto:true});
+}
+
+/* ============================================================
+   아이템 (다시보기 / 힌트 / 스킵)  +  동료 컴패니언 ON/OFF
+   ============================================================ */
+function updateItemBtns(){
+  [['peek','cnt-peek'],['hint','cnt-hint'],['skip','cnt-skip']].forEach(([k,id])=>{
+    const c=G.items[k]; const el=$(id); el.textContent=c; el.classList.toggle('zero',c<=0);
+    $('it-'+k).disabled = c<=0;
+  });
+}
+function clearSelection(){ if(G.first!==null){ getTileEl(G.first)?.classList.remove('selected'); G.first=null; G.firstWasUp=false; } }
+$('it-peek').addEventListener('click', ()=>{
+  if(G.items.peek<=0||G.locked) return;
+  G.items.peek--; updateItemBtns(); clearSelection();
+  G.reveal=true; G.locked=true; renderBoard();
+  $previewOv.classList.add('show'); let r=Math.ceil(CONFIG.PEEK_MS/1000);
+  const tk=()=>{ $previewNum.textContent=r; $previewNum.style.animation='none'; void $previewNum.offsetWidth; $previewNum.style.animation='';
+    if(r<=0){ $previewOv.classList.remove('show'); G.reveal=false; G.locked=false; renderBoard(); afterAction(); return; } r--; setTimeout(tk,1000); };
+  tk();
+});
+$('it-hint').addEventListener('click', ()=>{
+  if(G.items.hint<=0||G.locked) return;
+  const pair=findPair();
+  if(!pair){ toast('지금은 합칠 짝이 안 보여요'); return; }
+  G.items.hint--; updateItemBtns();
+  pair.forEach(i=>{ const el=getTileEl(i); if(el) el.classList.add('hint-glow'); });
+  $hint.textContent='여기랑 여기!'; $hint.classList.add('show');
+  setTimeout(()=>{ pair.forEach(i=>getTileEl(i)?.classList.remove('hint-glow')); $hint.classList.remove('show'); }, 2200);
+});
+// 스킵 = 자동 빨리감기로 대신 플레이(솔버)
+$('it-skip').addEventListener('click', ()=>{
+  if(G.items.skip<=0||G.locked) return;
+  G.items.skip--; updateItemBtns();
+  skipRun();
+});
+// 스킵 = 즉시 자동 완성(치트성 아이템). 복잡한 빨리감기 대신 깔끔히 전 주문 완료 처리.
+function skipRun(){
+  if(G.ended) return;
+  G.locked=true; toast('⏭️ 스킵 — 자동 완성!');
+  clearSelection();
+  // 보드/도구/바구니를 완성 상태로 정리(잔여 0)
+  G.board=G.board.map(()=>({type:null,lv:0,face:'e'}));
+  G.stations.forEach(s=>{ s.busy=false; s.remain=0; s.pending=false; });
+  G.baskets.forEach(b=>b.dumped=true);
+  renderBoard(); renderRightCol();
+  // 주문 체크 연출
+  G.stage.order.forEach((o,i)=>{ if(!G.orderDone[i]){ G.orderDone[i]=true; const card=$(`ic${i}`); if(card) card.classList.add('done'); } });
+  updateProg();
+  setTimeout(showClear, 450);
+}
+// 동료 컴패니언: ON이면 내 행동 1회마다 자동 머지 1회(무브 0)
+function updateCompanionBtn(){
+  const el=$('companion'); if(!el) return;
+  el.classList.remove('on');
+  el.querySelector('.cmp-state').textContent = '준비중';
+}
+// 동료 기능 미구현 — 클릭 시 설명+미구현 안내만(토글 동작 막음)
+function toggleCompanion(){ G.companion=false; toast('🧑‍🍳 동료 요리사 — 내 차례마다 자동 머지 1회(과금형) · 준비 중(미구현)'); }
+function companionAssist(){
+  if(!G.companion) return;
+  let tries=0;
+  const go=()=>{
+    if(G.orderDone.every(Boolean)) return;
+    if(G.locked){ if(tries++<10) setTimeout(go,160); return; }
+    const p=findPair(); if(!p) return;
+    const [a,b]=p; G.board[a].face='u'; G.board[b].face='u'; refreshTileEl(a); refreshTileEl(b);
+    doMerge(a,b,{auto:true}); afterAction();
+  };
+  setTimeout(go,320);
+}
+
+/* findPair: up끼리 → down끼리 → up+down (시스템은 위치를 앎) */
+function findPair(){
+  const up=[],dnMap={};
+  G.board.forEach((c,i)=>{
+    if(c.face==='u'){ up.push({i,type:c.type,lv:c.lv}); }
+    else if(c.face==='d'){ const k=`${c.type}_${c.lv}`; (dnMap[k]=dnMap[k]||[]).push(i); }
+  });
+  for(let a=0;a<up.length;a++) for(let b=a+1;b<up.length;b++) if(up[a].type===up[b].type&&up[a].lv===up[b].lv) return [up[a].i,up[b].i];
+  for(const k in dnMap) if(dnMap[k].length>=2) return [dnMap[k][0],dnMap[k][1]];
+  for(const u of up){ const k=`${u.type}_${u.lv}`; if(dnMap[k]&&dnMap[k].length>0) return [u.i,dnMap[k][0]]; }
+  return null;
+}
+
+/* ============================================================
+   바구니 내용물 모달
+   ============================================================ */
+function openBasketPeek(bidx){
+  if(G.locked) return;                       // 프리뷰/연출 중 모달로 시간 낭비 방지
+  const b=G.baskets[bidx]; if(!b) return;
+  const grid=$('bp-grid'); grid.innerHTML='';
+  b.cards.forEach(([t,lv])=>{ const m=ING[t]||{name:t,emoji:'?'};
+    const c=document.createElement('div'); c.className='bp-cell';
+    c.innerHTML=`<span class="e">${m.emoji}</span><span class="n">${m.name} Lv${lv}</span>`; grid.appendChild(c);
+  });
+  $('bp-note').textContent=`이 바구니는 유효 머지 ${Math.max(0,b.at-G.mergeCount)}회 후 남은 빈 칸에 위 재료들을 쏟아냅니다. 미리 종류를 기억해 두세요.`;
+  $('basket-modal').classList.add('show');
+}
+
+/* ============================================================
+   결과
+   ============================================================ */
+function calcStars(){ const used=G.stage.movesLimit-G.movesLeft; const t=G.stage.starT; if(used<=t[0]) return 3; if(used<=t[1]) return 2; return 1; }
+function setStars(n){ $ovStars.querySelectorAll('.star').forEach((el,i)=> el.classList.toggle('on', i<n)); }
+function showClear(){
+  if(G.ended) return; G.ended=true;                 // 1회성(중복·게임오버 역전 방지)
+  G.locked=true;
+  const used=G.stage.movesLimit-G.movesLeft; const stars=calcStars();
+  const ch=CHAPTERS[G.ch]; const isLastStage=G.st>=ch.stages.length-1; const isLastCh=G.ch>=CHAPTERS.length-1;
+  $ovIcon.textContent='🎉'; $ovTitle.textContent='주문 완료!'; $ovSub.textContent=`${used}무브 사용`;
+  $ovStars.style.display='flex'; setStars(stars);
+  $ovBtns.innerHTML='';
+  const bSelect=mkBtn('스테이지 선택','ghost',()=>{ closeOverlay(); buildSelect(); showScreen('select'); });
+  let nextBtn;
+  if(!isLastStage) nextBtn=mkBtn('다음 →','',()=>{ closeOverlay(); startStage(G.ch,G.st+1); });
+  else if(!isLastCh) nextBtn=mkBtn('다음 챕터 →','',()=>{ closeOverlay(); startStage(G.ch+1,0); });
+  else nextBtn=mkBtn('처음으로','',()=>{ closeOverlay(); showScreen('lobby'); });
+  $ovBtns.append(bSelect,nextBtn);
+  $overlay.classList.add('show');
+}
+function showGameOver(reason){
+  if(G.ended || G.orderDone.every(Boolean)) return;  // 이미 끝났거나 사실상 클리어면 무시
+  G.ended=true; G.locked=true;
+  const R={
+    moves:['😢','무브 소진!','다시 도전해봐요!'],
+    cook:['⏰','조리 시간 부족!','조리 재료를 더 먼저 올렸어야 해요'],
+    stuck:['🚧','막혔어요!','더 합칠 짝이 없어요'],
+  };
+  const [ic,ti,su]=R[reason]||R.moves;
+  $ovIcon.textContent=ic; $ovTitle.textContent=ti; $ovSub.textContent=su;
+  $ovStars.style.display='none'; $ovBtns.innerHTML='';
+  $ovBtns.append(
+    mkBtn('스테이지 선택','ghost',()=>{ closeOverlay(); buildSelect(); showScreen('select'); }),
+    mkBtn('다시 시도','',()=>{ closeOverlay(); startStage(G.ch,G.st); })
+  );
+  $overlay.classList.add('show');
+}
+function mkBtn(label,cls,fn){ const b=document.createElement('button'); b.className='ov-btn'+(cls?' '+cls:'');
+  b.textContent=label; b.onclick=()=>{ if(b.disabled) return; $ovBtns.querySelectorAll('button').forEach(x=>x.disabled=true); fn(); }; return b; }
+function closeOverlay(){ $overlay.classList.remove('show'); }
+
+/* ============================================================
+   레시피북 모달 (계층 트리 + 조합식)
+   ============================================================ */
+$('btn-recipe').addEventListener('click', ()=>{ if(G.locked) return; openRecipe(G.ch); });
+function openRecipe(chIdx){
+  const tabs=$('rb-tabs'); tabs.innerHTML='';
+  CHAPTERS.forEach((ch,i)=>{ const t=document.createElement('button'); t.className='rb-tab'+(i===chIdx?' active':''); t.textContent=`${ch.flag} ${ch.name}`; t.onclick=()=>renderRecipe(i); tabs.appendChild(t); });
+  renderRecipe(chIdx);
+  $('recipe-modal').classList.add('show');
+}
+function renderRecipe(chIdx){
+  $('rb-tabs').querySelectorAll('.rb-tab').forEach((t,i)=> t.classList.toggle('active',i===chIdx));
+  const ch=CHAPTERS[chIdx], body=$('rb-body');
+  const diffColor=d=> d==='하'?'#57b894':d==='중'?'#f5a623':d==='상'?'#e0573b':'#8e3bd6';
+  const diffRarityLv=d=> d==='하'?2:d==='중'?3:4;
+  // 기본(원재료) 타입 수집 — 조리 주문은 원재료로 환원
+  const baseSet=new Set(), cookSet=new Set();
+  ch.stages.forEach(s=> s.order.forEach(it=>{ if(it[2]){ baseSet.add(COOK[it[0]].from); cookSet.add(it[0]); } else baseSet.add(it[0]); }));
+  const maxLvOf={}; ch.stages.forEach(s=> s.order.forEach(it=>{ const base=it[2]?COOK[it[0]].from:it[0]; maxLvOf[base]=Math.max(maxLvOf[base]||2,it[1]); }));
+
+  let html='';
+  html+='<div class="rarity-legend">'+RARITY.map(r=>`<span style="background:${r.color}">Lv${r.lv} ${r.name}</span>`).join('')+'</div>';
+
+  // 재료 계층(머지 체인)
+  html+='<div class="rb-section-title">① 재료 계층 — 같은 재료 2개 = 다음 단계 (2-머지)</div>';
+  [...baseSet].forEach(t=>{
+    const m=ING[t]; const top=maxLvOf[t]||2;
+    let chain='';
+    for(let lv=1;lv<=top;lv++){
+      const r=rarityOf(lv);
+      chain+=`<span class="rb-pill" style="border-color:${r.color}">${m.emoji} ${m.name}<span style="color:${r.color};font-weight:900"> L${lv}</span></span>`;
+      if(lv<top) chain+='<span class="rb-arrow">＋동일 →</span>';
+    }
+    const tag=m.common?'<span style="font-size:10px;color:#888;font-weight:800">공통</span>':`<span style="font-size:10px;color:${ch.id==='it'?'#43A047':'#E0573B'};font-weight:800">특산</span>`;
+    html+=`<div class="rb-chain">${chain} &nbsp;${tag}</div>`;
+  });
+
+  // 조리(변환) — 도구로 원재료를 진화재료로
+  if(cookSet.size){
+    html+='<div class="rb-section-title">② 조리 — 도구에 올리면 시간(무브) 후 진화 재료로</div>';
+    [...cookSet].forEach(ev=>{
+      const c=COOK[ev], bm=ING[c.from], em=ING[ev];
+      // 이 진화재료가 등장하는 스테이지의 time
+      let time='?'; ch.stages.forEach(s=> s.order.forEach(it=>{ if(it[0]===ev&&it[2]) time=it[2].time; }));
+      html+=`<div class="rb-chain"><span class="rb-pill" style="border-color:#B07840">${bm.emoji} ${bm.name}</span><span class="rb-arrow">${c.toolEmoji} ${c.tool} ⏱${time}무브 →</span><span class="rb-pill" style="border-color:#8e3bd6;font-weight:900">${em.emoji} ${em.name}</span></div>`;
+    });
+  }
+
+  // 완성 요리 조합식
+  html+='<div class="rb-section-title">③ 완성 요리 — 조합식 (난이도 = 재료 수 = 카드 수)</div>';
+  ch.stages.forEach(s=>{
+    const r=rarityOf(diffRarityLv(s.diff));
+    const cards=decompose(s.order).length;
+    const pills=s.order.map(it=>{ const t=it[0],lv=it[1]; const m=ING[t]; const rr=rarityOf(lv);
+      const cook=it[2]?`<span class="ing-cook">${COOK[t].toolEmoji}</span>`:'';
+      return `<span class="rb-pill" style="border-color:${rr.color};position:relative">${cook}${m.emoji} ${m.name} <span style="color:${rr.color};font-weight:900">L${lv}</span></span>`; }).join('<span class="rb-plus">＋</span>');
+    html+=`<div class="rb-dish">
+        <div class="rb-dish-head"><span class="rb-dish-emoji">${s.dish.emoji}</span><span class="rb-dish-name">${s.dish.name}</span>
+          <span class="rb-dish-rarity" style="background:${diffColor(s.diff)}">${s.diff} · 카드 ${cards}</span></div>
+        <div class="rb-formula">${pills}<span class="rb-eq"> = </span><span class="rb-pill" style="border-color:${r.color};font-weight:900">${s.dish.emoji} ${s.dish.name}</span></div>
+      </div>`;
+  });
+  body.innerHTML=html;
+}
+
+/* 모달 닫기 공통 */
+document.querySelectorAll('.modal').forEach(mod=>{
+  mod.addEventListener('click', e=>{ if(e.target===mod || e.target.closest('[data-close]')) mod.classList.remove('show'); });
+});
+
+/* ============================================================
+   시작
+   ============================================================ */
+$('companion').addEventListener('click', toggleCompanion);
+$('ob-cta').addEventListener('click', ()=> showScreen('lobby'));
+showScreen('onboarding');
+</script>
+</body>
+</html>
